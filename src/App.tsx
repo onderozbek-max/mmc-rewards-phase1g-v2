@@ -230,24 +230,19 @@ const PrototypeNotice = () => (
   </aside>
 )
 
-const DevPanel = () => {
-  const demoMode = new URLSearchParams(window.location.search).get('demo') === 'true'
-  if (!demoMode) return null
-
-  return (
-    <details className="dev-panel">
-      <summary>Prototype scenarios</summary>
-      <div className="dev-panel__content">
-        <p>Six focused reward scenarios</p>
-        <div className="scenario-list">
-          {SCENARIOS.map((scenario, index) => (
-            <a href={`${scenario}&demo=true`} key={scenario}>Scenario {index + 1}</a>
-          ))}
-        </div>
+const DevPanel = () => (
+  <details className="dev-panel">
+    <summary>Prototype scenarios</summary>
+    <div className="dev-panel__content">
+      <p>Six focused reward scenarios</p>
+      <div className="scenario-list">
+        {SCENARIOS.map((scenario, index) => (
+          <a href={scenario} key={scenario}>Scenario {index + 1}</a>
+        ))}
       </div>
-    </details>
-  )
-}
+    </div>
+  </details>
+)
 
 const CommunityPassPreview = ({ params, pageLink }: { params: Params; pageLink: (page: Page) => string }) => {
   const tier = getRewardTier(params.points)
@@ -415,50 +410,68 @@ const IhutPanel = ({ threshold, points, onAction }: { threshold: 1000 | 3000; po
   return <details className="ihut-panel"><summary>{summary}</summary>{body}</details>
 }
 
+const WEEKLY_MILESTONES = [
+  { weeks: 4, name: 'Find your rhythm', detail: 'Your first month of showing up.', badge: 'First rhythm badge' },
+  { weeks: 8, name: 'Get in the groove', detail: 'Two months of steady momentum.', badge: 'Momentum badge' },
+  { weeks: 12, name: 'Become a community regular', detail: 'A full quarter of participation.', badge: 'Community regular badge' },
+  { weeks: 26, name: 'Keep the momentum', detail: 'Six months of helping shape what comes next.', badge: 'Half-year badge' },
+] as const
+
 const WeeklyActivity = ({ params }: { params: Params }) => {
-  const [selectedGoal, setSelectedGoal] = useState<0 | 1 | 2>(params.goal)
-  const streaks = [4, 8, 12, 26]
-  const goalOptions = [
-    { value: 0 as const, label: 'One activity', detail: 'A simple way to start' },
-    { value: 1 as const, label: 'Two activities', detail: 'Keep your momentum going' },
-    { value: 2 as const, label: 'Three activities', detail: 'Build a steady rhythm' },
-  ]
+  const nextMilestone = WEEKLY_MILESTONES.find((milestone) => params.weeks < milestone.weeks)
+  const previousMilestone = nextMilestone
+    ? WEEKLY_MILESTONES[WEEKLY_MILESTONES.findIndex((milestone) => milestone.weeks === nextMilestone.weeks) - 1]
+    : WEEKLY_MILESTONES[WEEKLY_MILESTONES.length - 1]
+  const progressStart = previousMilestone?.weeks ?? 0
+  const progressEnd = nextMilestone?.weeks ?? WEEKLY_MILESTONES[WEEKLY_MILESTONES.length - 1].weeks
+  const progressPercent = nextMilestone
+    ? Math.min(100, Math.max(0, ((params.weeks - progressStart) / (progressEnd - progressStart)) * 100))
+    : 100
+  const nextCopy = nextMilestone
+    ? `${nextMilestone.weeks - params.weeks} weeks to ${nextMilestone.name}`
+    : 'All weekly milestones reached'
+
   return (
     <section className="section-block weekly-section" aria-labelledby="weekly-title">
       <div className="section-heading">
         <span className="eyebrow">Keep your momentum</span>
-        <h2 id="weekly-title">Weekly activity</h2>
+        <h2 id="weekly-title">Build your weekly streak</h2>
+        <p>Complete an eligible activity each week. Your streak celebrates consistency and never changes your lifetime points.</p>
       </div>
-      <div className="streak-timeline" aria-label="Weekly streak milestones">
-        {streaks.map((streak, index) => {
-          const earned = params.weeks >= streak
-          const connected = index < streaks.length - 1 && params.weeks >= streaks[index + 1]
+      <article className="streak-summary-card">
+        <div className="streak-summary-card__topline">
+          <div>
+            <span className="eyebrow">Current streak</span>
+            <strong>{params.weeks} <small>weeks</small></strong>
+          </div>
+          <span className="streak-summary-card__badge" aria-hidden="true">{params.weeks >= 4 ? '✦' : '○'}</span>
+        </div>
+        <div className="streak-progress" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progressPercent)} aria-valuetext={nextCopy}>
+          <span style={{ width: `${progressPercent}%` }} />
+        </div>
+        <div className="streak-summary-card__bottomline">
+          <strong>{nextCopy}</strong>
+          <span>{nextMilestone ? `${nextMilestone.weeks} weeks` : 'Complete'}</span>
+        </div>
+      </article>
+      <div className="streak-track" aria-label="Fixed weekly streak milestones">
+        {WEEKLY_MILESTONES.map((milestone) => {
+          const earned = params.weeks >= milestone.weeks
           return (
-            <div className={`streak-node ${earned ? 'is-earned' : 'is-locked'} ${connected ? 'is-connected' : ''}`} key={streak}>
-              <span className="streak-node__dot" aria-hidden="true">{earned ? '✓' : '×'}</span>
-              <strong>{streak}</strong>
-              <small>weeks</small>
-            </div>
+            <article className={`streak-milestone ${earned ? 'is-earned' : 'is-locked'}`} key={milestone.weeks}>
+              <span className="streak-milestone__node" aria-hidden="true">{earned ? '✓' : milestone.weeks}</span>
+              <div className="streak-milestone__content">
+                <div className="streak-milestone__topline">
+                  <strong>{milestone.name}</strong>
+                  <span>{milestone.weeks} weeks</span>
+                </div>
+                <p>{milestone.detail}</p>
+                <small>{earned ? `${milestone.badge} earned` : `Reach ${milestone.weeks} weeks`}</small>
+              </div>
+            </article>
           )
         })}
       </div>
-      <article className="goal-card">
-        <div className="goal-card__header">
-          <div>
-            <span className="eyebrow">Illustrative weekly goal</span>
-            <h3>Choose a goal that feels right</h3>
-          </div>
-          <span className="goal-card__badge" aria-hidden="true">◎</span>
-        </div>
-        <div className="goal-options">
-          {goalOptions.map((option) => (
-            <button className={`goal-option ${selectedGoal === option.value ? 'is-selected' : ''}`} aria-pressed={selectedGoal === option.value} onClick={() => setSelectedGoal(option.value)} type="button" key={option.label}>
-              <span className="goal-option__radio" aria-hidden="true">{selectedGoal === option.value ? '●' : '○'}</span>
-              <span><strong>{option.label}</strong><small>{option.detail}</small></span>
-            </button>
-          ))}
-        </div>
-      </article>
       <p className="protection-line"><span className="status-dot" aria-hidden="true" />
         {params.protection === 'available' && 'Streak Protection is available if you need it.'}
         {params.protection === 'used' && 'Streak Protection was used recently. Your progress is still here.'}
