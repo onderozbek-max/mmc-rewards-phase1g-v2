@@ -1,0 +1,33 @@
+{
+  "name": "mmc-rewards-phase1g-v2",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "peerDependencies": {
+    "@walmart/ld-kit": "*"
+  },
+  "peerDependenciesMeta": {
+    "@walmart/ld-kit": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/react": "18.3.31",
+    "@types/react-dom": "18.3.7",
+    "@vitejs/plugin-react": "4.7.0",
+    "typescript": "5.9.3",
+    "vite": "6.4.3"
+  },
+  "overrides": {
+    "rollup": "4.62.5"
+  }
+}
