@@ -211,7 +211,7 @@ const ProgressModule = ({ params, pageLink }: { params: Params; pageLink: (page:
         <span className="arrow" aria-hidden="true">↗</span>
       </div>
       <div className="progress-module__points">{formatPoints(params.points)} <span>points</span></div>
-      <div className="progress-bar" aria-label={`${progress.percent}% complete`}>
+      <div className="progress-bar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progress.percent)} aria-valuetext={progress.label}>
         <span style={{ width: `${progress.percent}%` }} />
       </div>
       <div className="progress-module__bottomline">
@@ -223,19 +223,31 @@ const ProgressModule = ({ params, pageLink }: { params: Params; pageLink: (page:
   )
 }
 
-const DevPanel = () => (
-  <details className="dev-panel">
-    <summary>Prototype scenarios</summary>
-    <div className="dev-panel__content">
-      <p>Six focused reward scenarios</p>
-      <div className="scenario-list">
-        {SCENARIOS.map((scenario, index) => (
-          <a href={scenario} key={scenario}>Scenario {index + 1}</a>
-        ))}
-      </div>
-    </div>
-  </details>
+const PrototypeNotice = () => (
+  <aside className="prototype-notice" role="note">
+    <span className="prototype-notice__dot" aria-hidden="true">i</span>
+    <p><strong>Vision prototype.</strong> Points, rewards, opportunities, and dates are illustrative.</p>
+  </aside>
 )
+
+const DevPanel = () => {
+  const demoMode = new URLSearchParams(window.location.search).get('demo') === 'true'
+  if (!demoMode) return null
+
+  return (
+    <details className="dev-panel">
+      <summary>Prototype scenarios</summary>
+      <div className="dev-panel__content">
+        <p>Six focused reward scenarios</p>
+        <div className="scenario-list">
+          {SCENARIOS.map((scenario, index) => (
+            <a href={`${scenario}&demo=true`} key={scenario}>Scenario {index + 1}</a>
+          ))}
+        </div>
+      </div>
+    </details>
+  )
+}
 
 const CommunityPassPreview = ({ params, pageLink }: { params: Params; pageLink: (page: Page) => string }) => {
   const tier = getRewardTier(params.points)
@@ -270,6 +282,11 @@ const CommunityPassPreview = ({ params, pageLink }: { params: Params; pageLink: 
             nextDetail: 'Unlocks at 250 points.',
             note: 'Your community pass is building with every activity.',
           }
+  const note = tier && !params.active
+    ? `You've reached the ${tier.name} tier, but a qualifying activity is needed to stay eligible this quarter.`
+    : tier && params.redeemed
+      ? 'Your current-quarter reward is marked redeemed in this illustrative scenario.'
+      : snapshot.note
 
   return (
     <section className="community-pass-preview" aria-labelledby="community-pass-preview-title">
@@ -294,7 +311,7 @@ const CommunityPassPreview = ({ params, pageLink }: { params: Params; pageLink: 
       </div>
       <div className="community-pass-preview__note">
         <span aria-hidden="true">✓</span>
-        <p>{snapshot.note}</p>
+        <p>{note}</p>
       </div>
       <span className="illustrative-label">
         {tier ? `Example reward tier reached: ${tier.name} — illustrative only, not a confirmed offer` : 'Example reward begins at 250 points — illustrative only, not a confirmed offer'}
@@ -308,7 +325,7 @@ export const HomePage = ({ params, pageLink }: { params: Params; pageLink: (page
   const rewardAvailable = Boolean(getRewardTier(params.points) && params.active && !params.redeemed)
   return (
     <>
-      <main className="page-content">
+      <main id="main-content" className="page-content">
         <section className="intro-block">
           <span className="eyebrow">Your Member's Mark journey</span>
           <h1>Help shape what comes next</h1>
@@ -343,10 +360,11 @@ const MilestoneTimeline = ({ points }: { points: number }) => {
     <div className="timeline timeline--milestones">
       {nodes.map((node, index) => {
         const reached = points >= node.threshold
+        const nextReached = index < nodes.length - 1 && points >= nodes[index + 1].threshold
         return (
           <div className={`timeline-node ${reached ? 'is-reached' : 'is-locked'}`} key={node.label}>
             <span className="timeline-node__dot" aria-hidden="true">{reached ? '✓' : '×'}</span>
-            {index < nodes.length - 1 && <span className="timeline-node__line" aria-hidden="true" />}
+            {index < nodes.length - 1 && <span className={`timeline-node__line ${nextReached ? 'is-reached' : ''}`} aria-hidden="true" />}
             <strong>{node.label}{node.threshold > 0 ? ' pts' : ''}</strong>
             <small>{reached ? node.detail : `Reach ${formatPoints(node.threshold)} points`}</small>
           </div>
@@ -412,10 +430,11 @@ const WeeklyActivity = ({ params }: { params: Params }) => {
         <h2 id="weekly-title">Weekly activity</h2>
       </div>
       <div className="streak-timeline" aria-label="Weekly streak milestones">
-        {streaks.map((streak) => {
+        {streaks.map((streak, index) => {
           const earned = params.weeks >= streak
+          const connected = index < streaks.length - 1 && params.weeks >= streaks[index + 1]
           return (
-            <div className={`streak-node ${earned ? 'is-earned' : 'is-locked'}`} key={streak}>
+            <div className={`streak-node ${earned ? 'is-earned' : 'is-locked'} ${connected ? 'is-connected' : ''}`} key={streak}>
               <span className="streak-node__dot" aria-hidden="true">{earned ? '✓' : '×'}</span>
               <strong>{streak}</strong>
               <small>weeks</small>
@@ -433,7 +452,7 @@ const WeeklyActivity = ({ params }: { params: Params }) => {
         </div>
         <div className="goal-options">
           {goalOptions.map((option) => (
-            <button className={`goal-option ${selectedGoal === option.value ? 'is-selected' : ''}`} onClick={() => setSelectedGoal(option.value)} type="button" key={option.label}>
+            <button className={`goal-option ${selectedGoal === option.value ? 'is-selected' : ''}`} aria-pressed={selectedGoal === option.value} onClick={() => setSelectedGoal(option.value)} type="button" key={option.label}>
               <span className="goal-option__radio" aria-hidden="true">{selectedGoal === option.value ? '●' : '○'}</span>
               <span><strong>{option.label}</strong><small>{option.detail}</small></span>
             </button>
@@ -449,7 +468,7 @@ const WeeklyActivity = ({ params }: { params: Params }) => {
   )
 }
 
-const Voucher = ({ tier, redeemed, onAction }: { tier: RewardTier; redeemed: boolean; onAction: (message: string) => void }) => (
+const Voucher = ({ tier, redeemed, onRedeem }: { tier: RewardTier; redeemed: boolean; onRedeem: () => void }) => (
   <div className={`voucher ${redeemed ? 'voucher--redeemed' : ''}`}>
     <div className="voucher__topline">
       <span className="eyebrow">{redeemed ? 'Reward redeemed' : 'Your illustrative reward'}</span>
@@ -460,7 +479,7 @@ const Voucher = ({ tier, redeemed, onAction }: { tier: RewardTier; redeemed: boo
         <h3>{tier.name}</h3>
         <span className="illustrative-label">{tier.reward}</span>
       </div>
-      <div className="qr-placeholder" aria-label="Illustrative QR placeholder">QR</div>
+      <div className="qr-placeholder" role="img" aria-label="Illustrative QR placeholder; not scannable">QR</div>
     </div>
     {redeemed ? (
       <p className="voucher__date">Next reward available <strong>[illustrative next-quarter date]</strong></p>
@@ -468,7 +487,7 @@ const Voucher = ({ tier, redeemed, onAction }: { tier: RewardTier; redeemed: boo
       <>
         <p className="voucher__instruction">{tier.name === 'Cafe item' ? 'Show this at the cafe counter' : 'Show this to redeem'}</p>
         <p className="voucher__date">Valid through <strong>[illustrative end-of-quarter date]</strong></p>
-        <button className="button button--primary button--full" onClick={() => onAction('Redeem is a prototype stub — no real redemption occurred.')}>Redeem</button>
+        <button className="button button--primary button--full" onClick={onRedeem}>Redeem in this prototype</button>
       </>
     )}
   </div>
@@ -476,6 +495,11 @@ const Voucher = ({ tier, redeemed, onAction }: { tier: RewardTier; redeemed: boo
 
 const QuarterlyReward = ({ params, onAction }: { params: Params; onAction: (message: string) => void }) => {
   const tier = getRewardTier(params.points)
+  const [demoRedeemed, setDemoRedeemed] = useState(params.redeemed)
+  const handleRedeem = () => {
+    setDemoRedeemed(true)
+    onAction('Reward marked redeemed in this illustrative prototype.')
+  }
   return (
     <section className="section-block quarterly-section" aria-labelledby="quarterly-title">
       <div className="section-heading">
@@ -503,7 +527,10 @@ const QuarterlyReward = ({ params, onAction }: { params: Params; onAction: (mess
           </div>
         </article>
       ) : (
-        <Voucher tier={tier} redeemed={params.redeemed} onAction={onAction} />
+        <>
+          {!demoRedeemed && <p className="reward-eligibility-copy">{tier.eligibleCopy}</p>}
+          <Voucher tier={tier} redeemed={demoRedeemed} onRedeem={handleRedeem} />
+        </>
       )}
       {/* The 90-day activity rule is a separate illustrative concept from the weekly streak above; Phase 2's real activity model is not settled. */}
       <p className="section-note">Quarterly reward eligibility is illustrative and separate from weekly streak progress.</p>
@@ -512,7 +539,7 @@ const QuarterlyReward = ({ params, onAction }: { params: Params; onAction: (mess
 }
 
 export const PassPage = ({ params, onAction }: { params: Params; onAction: (message: string) => void }) => (
-  <main className="page-content">
+  <main id="main-content" className="page-content">
     <section className="pass-hero">
       <span className="eyebrow">Your cumulative pass</span>
       <h1>{formatPoints(params.points)} <span>points</span></h1>
@@ -549,7 +576,7 @@ export const ProfilePage = ({ params, pageLink }: { params: Params; pageLink: (p
   ]
   const streakBadges = [4, 8, 12, 26].filter((streak) => params.weeks >= streak)
   return (
-    <main className="page-content">
+    <main id="main-content" className="page-content">
       <section className="profile-hero">
         <div className="profile-avatar" aria-hidden="true">M</div>
         <span className="eyebrow">Member profile</span>
@@ -575,7 +602,7 @@ export const ProfilePage = ({ params, pageLink }: { params: Params; pageLink: (p
         </div>
       </section>
       <section className="section-block" aria-labelledby="history-title">
-        <div className="section-heading"><span className="eyebrow">Illustrative examples</span><h2 id="history-title">Reward history</h2></div>
+        <div className="section-heading"><span className="eyebrow">Illustrative examples</span><h2 id="history-title">Sample reward history</h2></div>
         <div className="list-card">
           <div className="list-row is-unlocked"><span className="list-row__icon" aria-hidden="true">✓</span><span><strong>Q3 2026 — Cafe item — Redeemed</strong><small>Example history — illustrative only</small></span></div>
           <div className="list-row is-unlocked"><span className="list-row__icon" aria-hidden="true">•</span><span><strong>Q4 2026 — Cafe item — Available</strong><small>Example history — illustrative only</small></span></div>
@@ -599,7 +626,9 @@ export default function App() {
 
   return (
     <div className="app-shell">
+      <a className="skip-link" href="#main-content">Skip to content</a>
       <Header pageLink={pageLink} />
+      <PrototypeNotice />
       {params.page === 'home' && <HomePage params={params} pageLink={pageLink} />}
       {params.page === 'pass' && <PassPage params={params} onAction={showToast} />}
       {params.page === 'profile' && <ProfilePage params={params} pageLink={pageLink} />}
